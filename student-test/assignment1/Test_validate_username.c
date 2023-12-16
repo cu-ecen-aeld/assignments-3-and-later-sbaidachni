@@ -20,5 +20,5 @@ void test_validate_my_username()
      */
     char *user_name = my_username();
     char *config_user_name = malloc_username_from_conf_file();
-    TEST_ASSERT_EQUAL_STRING_MESSAGE(user_name, config_user_name);
+    TEST_ASSERT_EQUAL_STRING_MESSAGE(user_name, config_user_name, "Strings are not correct!");
 }
