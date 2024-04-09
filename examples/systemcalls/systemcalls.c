@@ -1,3 +1,10 @@
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <string.h>
 #include "systemcalls.h"
 
 /**
@@ -16,6 +23,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+
+    int ret = system(cmd);
+
+    if (ret == -1)
+        return false;
 
     return true;
 }
@@ -58,10 +70,38 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t pid;
+    int status;
+    bool retValue = true;
+
+    if (!fork())
+    {
+        int execret = execv(command[0], command);
+        if (execret == -1)
+        {
+            exit(EXIT_FAILURE);
+        }
+        exit(EXIT_SUCCESS);
+    }
+        
+
+    pid = wait(&status);
+
+    if (pid == -1)
+        retValue = false;
+    
+
+    if ((pid != -1) && WIFEXITED(status))
+    {
+        if (WEXITSTATUS(status) != EXIT_SUCCESS)
+            retValue = false;
+    }
+    else
+        retValue = false;
 
     va_end(args);
 
-    return true;
+    return retValue;
 }
 
 /**
@@ -84,7 +124,6 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // and may be removed
     command[count] = command[count];
 
-
 /*
  * TODO
  *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
@@ -92,8 +131,46 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+    pid_t pid;
+    int status;
+    bool retValue = true;
+    int fd;
+
+    if (!fork())
+    {
+        fd = open(outputfile, O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU |S_IRGRP|S_IROTH);
+	    if (fd == -1)
+            exit(EXIT_FAILURE);
+
+	    int dup = dup2(fd, 1);
+
+	    if (dup < 0)
+	        exit(EXIT_FAILURE);
+
+        int execret = execv(command[0], command);
+        if (execret == -1)
+        {
+            exit(EXIT_FAILURE);
+        }
+        exit(EXIT_SUCCESS);
+    }
+        
+
+    pid = wait(&status);
+
+    if (pid == -1)
+        retValue = false;
+    
+
+    if ((pid != -1) && WIFEXITED(status))
+    {
+        if (WEXITSTATUS(status) != EXIT_SUCCESS)
+            retValue = false;
+    }
+    else
+        retValue = false;
 
     va_end(args);
 
-    return true;
+    return retValue;
 }
