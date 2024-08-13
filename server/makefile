@@ -19,7 +19,7 @@ clean:
 	-rm -f aesdsocket
 
 build: aesdsocket.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -pthread -o $@ $@.o
 
 depend:
 

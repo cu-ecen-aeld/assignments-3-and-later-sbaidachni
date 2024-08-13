@@ -12,23 +12,113 @@
 #include <signal.h>
 #include <errno.h>
 #include <arpa/inet.h>
-
+#include <pthread.h>
 
 static char is_exit = 0;
 static const char file_path[] = "/var/tmp/aesdsocketdata";
-static const size_t buf_size = 64;
+static const size_t buf_size = 256;
+static int file_descriptor;
+int s_id;
+struct connect_item *head=NULL, *last=NULL;
 
-static void signal_handler(int signo) {
-    is_exit=1;   
+timer_t timerid;
+
+static pthread_mutex_t file_mutex;
+static pthread_mutex_t queue_mutex;
+
+struct connect_item
+{
+    pthread_t thread;
+    int completed;
+    int cfd;
+    struct connect_item *next;
+};
+
+static void signal_handler(int signo)
+{
+    is_exit=1;
+}
+
+void* active_connection(void *element)
+{
+    struct connect_item *item = (struct connect_item *)element;
+
+    for(;;) 
+    {
+        char buf[buf_size]; 
+
+        int recv_len = recv(item->cfd, buf, sizeof(buf), 0);
+        if (recv_len <= 0) {
+            break;
+        }
+
+        int i=0;
+        int end = 0;
+        for (i=0; i < recv_len; i++) {
+            if (buf[i] == '\n') {
+                i += 1;
+                end = 1;
+                break;
+            }
+        }
+        pthread_mutex_lock(&file_mutex);
+        write(file_descriptor, buf, i);
+        pthread_mutex_unlock(&file_mutex);
+        if (end==1) {
+            pthread_mutex_lock(&file_mutex);
+            int rfd = open(file_path, O_RDONLY, 0);
+            while (1) {
+                int read_len = read(rfd, buf, sizeof(buf));
+                if (read_len == 0) {
+                    pthread_mutex_unlock(&file_mutex);
+                    break;
+                }
+
+                send(item->cfd, buf, read_len, 0);
+            }
+            close(rfd);
+        }
+        
+    }
+
+    item->completed = 1;
+    return NULL;
+}
+
+static void alarm_handler(union sigval sigval)
+{
+    alarm(10);
+	char outstr[200];
+
+	time_t t = time(NULL);
+	struct tm *tmp = localtime(&t);
+	strftime(outstr, sizeof(outstr), "%a, %d %b %Y %T %z", tmp);
+
+	pthread_mutex_lock(&file_mutex);
+	write(file_descriptor, "timestamp:", strlen("timestamp:"));
+	write(file_descriptor, outstr, strlen(outstr));
+	write(file_descriptor, "\n", strlen("\n"));
+	pthread_mutex_unlock(&file_mutex);
+    
 }
 
 int main(int argc, char** argv)
 {
-    struct sigaction action = {};
-    action.sa_handler = &signal_handler;
+    if ((argc > 1) && (strcmp(argv[1],"-d") == 0)) 
+    {
+        int pid = fork();
+        if (pid!=0)
+        {
+            exit(EXIT_SUCCESS);
+        }
+        setsid();
+    }
 
-    sigaction(SIGINT, &action, NULL);
-    sigaction(SIGTERM, &action, NULL);
+    struct sigevent sev;
+    struct itimerspec its;
+
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
 
     openlog(NULL, 0, LOG_USER);
 
@@ -48,7 +138,7 @@ int main(int argc, char** argv)
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
 
-    int s_id = socket(PF_INET, SOCK_STREAM, 0);
+    s_id = socket(PF_INET, SOCK_STREAM, 0);
     if (s_id == -1)
     {
         fprintf(stderr, "Cannot open socket.\n");
@@ -71,15 +161,6 @@ int main(int argc, char** argv)
 
     freeaddrinfo(result);
 
-    if ((argc > 1) && (strcmp(argv[1],"-d") == 0)) 
-    {
-        int pid = fork();
-        if (pid!=0)
-        {
-            exit(EXIT_SUCCESS);
-        }
-    }
-
     if (listen(s_id, 1)==-1)
     {
             fprintf(stderr, "Error in listening.\n");
@@ -89,7 +170,38 @@ int main(int argc, char** argv)
 
     printf("Listening\n");
 
-    int fd = open(file_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU  | S_IRGRP | S_IROTH);
+ 
+
+    pthread_mutex_init(&queue_mutex, NULL);
+    pthread_mutex_init(&file_mutex, NULL);
+
+    file_descriptor = open(file_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU  | S_IRGRP | S_IROTH);
+
+    int clock_id = CLOCK_REALTIME;
+    memset(&sev, 0, sizeof(struct sigevent));
+    
+    sev.sigev_notify = SIGEV_THREAD;
+    sev.sigev_value.sival_ptr = &timerid;
+    sev.sigev_notify_function = alarm_handler;
+    sev.sigev_notify_attributes = NULL;
+    if (timer_create(clock_id, &sev, &timerid) == -1)
+    {
+        printf("create timer failed\n");
+        timer_delete(timerid);
+        return -1;
+    }
+
+    its.it_value.tv_sec = 10;
+    its.it_value.tv_nsec = 0;
+    its.it_interval.tv_sec = its.it_value.tv_sec;
+    its.it_interval.tv_nsec = its.it_value.tv_nsec;
+
+    if (timer_settime(timerid, 0, &its, NULL) == -1)
+    {
+        printf("set timer failed\n");
+        timer_delete(timerid);
+        return -1;
+    }
 
     while(is_exit==0) 
     {
@@ -105,47 +217,66 @@ int main(int argc, char** argv)
         inet_ntop(AF_INET, &peer_addr.sin_addr, addrs, INET_ADDRSTRLEN);
         syslog(LOG_INFO, "Accepted connection from %s", addrs);
 
-        for(;;) 
+        if (head==NULL)
         {
-            char buf[buf_size]; 
-
-            int recv_len = recv(cfd, buf, sizeof(buf), 0);
-            if (recv_len <= 0) {
-                break;
-            }
-
-            int i=0;
-            int end = 0;
-            for (i=0; i < recv_len; i++) {
-                if (buf[i] == '\n') {
-                    i += 1;
-                    end = 1;
-                    break;
-                }
-            }
-
-            write(fd, buf, i);
-
-            if (end==1) {
-                int rfd = open(file_path, O_RDONLY, 0);
-                while (1) {
-                    int read_len = read(rfd, buf, sizeof(buf));
-                    if (read_len == 0) {
-                        break;
-                    }
-
-                    send(cfd, buf, read_len, 0);
-                }
-                close(rfd);
-            }
+            head = malloc(sizeof(struct connect_item));
+            last = head;
         }
-        close(cfd);
-        syslog(LOG_INFO, "Closed connection from %s", addrs);
+        else
+        {
+            last->next = malloc(sizeof(struct connect_item));
+            last = last->next;
+        }
+
+        last->completed = 0;
+        last->cfd = cfd;
+        last->next = NULL;
+        if (pthread_create(&last->thread, NULL, &active_connection, last) != 0)
+		{
+			perror("pthread_create");
+			exit(EXIT_FAILURE);
+		}
+
+        struct connect_item *plist_elem=head;
+		while (plist_elem!=NULL)
+		{
+			if(plist_elem->completed==1)
+			{
+				pthread_join(plist_elem->thread, NULL);
+                pthread_mutex_lock(&queue_mutex);
+                plist_elem->completed=-1;
+                close(plist_elem->cfd);
+                pthread_mutex_unlock(&queue_mutex);
+				syslog(LOG_USER, "Connection has been closed");
+			}
+            plist_elem = plist_elem->next;
+		}
     }
 
+    struct connect_item *plist_elem_c=head, *tmp_el;
+    pthread_mutex_lock(&queue_mutex);
+	while (plist_elem_c!=NULL)
+	{
+		if (plist_elem_c->completed!=-1)
+        {
+            pthread_join(plist_elem_c->thread, NULL);
+		    close(plist_elem_c->cfd);
+            syslog(LOG_USER, "Connection has been closed");
+        }
+        tmp_el=plist_elem_c;
+        plist_elem_c=plist_elem_c->next;
+		free(tmp_el);
+	}
+    pthread_mutex_unlock(&queue_mutex);
+
     syslog(LOG_INFO, "Caught signal, exiting");
-    close(fd);
+    closelog();
+    timer_delete(timerid);
+    close(file_descriptor);
+    pthread_mutex_destroy(&file_mutex);
+    pthread_mutex_destroy(&queue_mutex);
     close(s_id);
     unlink(file_path);
+
     return 0;
 }
