@@ -1,27 +1,14 @@
-INCLUDE_DIRS = 
-LIB_DIRS = 
-CC=$(CROSS_COMPILE)gcc
+SRC := aesdsocket.c
+TARGET ?= aesdsocket 
+OBJS := $(SRC:.c=.o)
+CC ?= $(CROSS_COMPILE)gcc 
+CFLAGS ?= -g -Wall -Werror
+LDFLAGS ?= -lrt -pthread
 
-CDEFS=
-CFLAGS= -O0 -g $(INCLUDE_DIRS) $(CDEFS) -Wall
-LIBS= 
+all: $(TARGET)
 
-HFILES= 
-CFILES=aesdsocket.c
-
-SRCS= ${HFILES} ${CFILES}
-OBJS= ${CFILES:.c=.o}
-
-all:	aesdsocket
+$(TARGET) : $(OBJS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
 clean:
-	-rm -f *.o *.d *.map *.elf
-	-rm -f aesdsocket
-
-build: aesdsocket.o
-	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $@.o -lrt -pthread
-
-depend:
-
-.c.o:
-	$(CC) $(CFLAGS) -c $<
+	-rm -f *.o $(TARGET) *.elf *.map
