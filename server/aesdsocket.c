@@ -223,8 +223,7 @@ int main(int argc, char** argv)
         if (cfd==-1)
         {
             fprintf(stderr, "Error in accepting.\n");
-            close(s_id);
-            exit(EXIT_FAILURE);
+            break;
         }
         char addrs[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &peer_addr.sin_addr, addrs, INET_ADDRSTRLEN);
