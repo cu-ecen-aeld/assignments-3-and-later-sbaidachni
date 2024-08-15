@@ -82,9 +82,25 @@ void* active_connection(void *element)
             }
         }
         syslog(LOG_INFO, "Buffer: %s", buf);
-        pthread_mutex_lock(&file_mutex);
-        write(file_descriptor, buf, i);
-        pthread_mutex_unlock(&file_mutex);
+
+        uint32_t write_cmd;
+        uint32_t write_cmd_offset;
+        int ret = sscanf(buf, "AESDCHAR_IOCSEEKTO:%u,%u\n", &write_cmd, &write_cmd_offset);
+        if (ret == 2)
+        {
+            struct aesd_seekto seekto;
+            seekto.write_cmd = write_cmd;
+            seekto.write_cmd_offset = write_cmd_offset;
+            ret = ioctl(file_descriptor, AESDCHAR_IOCSEEKTO, &seekto);
+        }
+        else
+        {
+            pthread_mutex_lock(&file_mutex);
+            write(file_descriptor, buf, i);
+            pthread_mutex_unlock(&file_mutex);
+        }
+        
+        
         if (end==1) {
             pthread_mutex_lock(&file_mutex);
             int rfd = open(file_path, O_RDONLY, 0);
