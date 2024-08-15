@@ -128,10 +128,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
     if(dev->entry->size > 0 && strnstr(dev->entry->buffptr, "\n", dev->entry->size) != NULL)
     {
-    	if((aux_buff = aesd_circular_buffer_add_entry(dev->circular_buffer, dev->entry)) != NULL)
-	    {
-		    kfree(aux_buff);
-	    }
+    	aesd_circular_buffer_add_entry(dev->circular_buffer, dev->entry);
 	    kfree(dev->entry);
 	    dev->entry = NULL;
     }
@@ -206,6 +203,7 @@ void aesd_cleanup_module(void)
      */
 
     int idx;
+    struct aesd_buffer_entry* entry_ptr;
     AESD_CIRCULAR_BUFFER_FOREACH(entry_ptr, aesd_device.circular_buffer, idx)
     {
 	    if(entry_ptr->buffptr != NULL)
