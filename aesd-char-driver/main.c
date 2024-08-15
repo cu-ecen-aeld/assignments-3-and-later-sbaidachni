@@ -202,7 +202,7 @@ void aesd_cleanup_module(void)
      * TODO: cleanup AESD specific poritions here as necessary
      */
 
-    int idx;
+    size_t idx;
     struct aesd_buffer_entry* entry_ptr;
     AESD_CIRCULAR_BUFFER_FOREACH(entry_ptr, aesd_device.circular_buffer, idx)
     {
@@ -211,6 +211,7 @@ void aesd_cleanup_module(void)
     }
 
     kfree(aesd_device.circular_buffer);
+    kfree(aesd_device.entry);
 
     unregister_chrdev_region(devno, 1);
 }
