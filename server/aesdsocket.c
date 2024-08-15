@@ -52,6 +52,10 @@ void* active_connection(void *element)
     struct connect_item *item = (struct connect_item *)element;
     int data_received = 0;
 
+    uint32_t write_cmd;
+    uint32_t write_cmd_offset;
+    struct aesd_seekto seekto;
+
     int file_descriptor = open(file_path, O_CREAT | O_APPEND | O_WRONLY, 0666);
 
     for(;;) 
@@ -83,12 +87,10 @@ void* active_connection(void *element)
         }
         syslog(LOG_INFO, "Buffer: %s", buf);
 
-        uint32_t write_cmd;
-        uint32_t write_cmd_offset;
+
         int ret = sscanf(buf, "AESDCHAR_IOCSEEKTO:%u,%u\n", &write_cmd, &write_cmd_offset);
         if (ret == 2)
         {
-            struct aesd_seekto seekto;
             seekto.write_cmd = write_cmd;
             seekto.write_cmd_offset = write_cmd_offset;
         }
