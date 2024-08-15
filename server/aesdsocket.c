@@ -109,7 +109,7 @@ void* active_connection(void *element)
 
 static void alarm_handler(union sigval sigval)
 {
-	char outstr[200];
+	/*char outstr[200];
 
 	time_t t = time(NULL);
 	struct tm *tmp = localtime(&t);
@@ -119,7 +119,7 @@ static void alarm_handler(union sigval sigval)
 	write(file_descriptor, "timestamp:", strlen("timestamp:"));
 	write(file_descriptor, outstr, strlen(outstr));
 	write(file_descriptor, "\n", strlen("\n"));
-	pthread_mutex_unlock(&file_mutex);
+	pthread_mutex_unlock(&file_mutex);*/
     
 }
 
