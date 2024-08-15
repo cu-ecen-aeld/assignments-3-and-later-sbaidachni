@@ -16,6 +16,7 @@
 #include <linux/printk.h>
 #include <linux/types.h>
 #include <linux/cdev.h>
+#include <linux/slab.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
 int aesd_major =   0; // use dynamic major
@@ -62,7 +63,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     struct aesd_dev* dev = (struct aesd_dev* )filp->private_data;
     mutex_lock_interruptible(&dev->lock);
 
-    struct aesd_buffer_entry* entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circular_buffer, *fpos, &entry_offset_byte_rtn);
+    struct aesd_buffer_entry* entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circular_buffer, *f_pos, &entry_offset_byte_rtn);
 	
     if (entry == NULL)
     {	
@@ -70,12 +71,12 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     }
     else
     {
-        read_count = cur_entry->size - entry_offset_byte_rtn;
+        read_count = entry->size - entry_offset_byte_rtn;
 	    if (read_count > count)
         {
             read_count = count;
         }
-	    copy_to_user(buf, (char *)(cur_entry->buffptr + entry_offset_byte_rtn), read_count);
+	    copy_to_user(buf, (char *)(entry->buffptr + entry_offset_byte_rtn), read_count);
 
         *f_pos += read_count;
 	    retval = read_count;
@@ -204,6 +205,7 @@ void aesd_cleanup_module(void)
      * TODO: cleanup AESD specific poritions here as necessary
      */
 
+    int idx;
     AESD_CIRCULAR_BUFFER_FOREACH(entry_ptr, aesd_device.circular_buffer, idx)
     {
 	    if(entry_ptr->buffptr != NULL)
