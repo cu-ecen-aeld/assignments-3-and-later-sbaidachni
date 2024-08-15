@@ -91,7 +91,6 @@ void* active_connection(void *element)
             struct aesd_seekto seekto;
             seekto.write_cmd = write_cmd;
             seekto.write_cmd_offset = write_cmd_offset;
-            ret = ioctl(file_descriptor, AESDCHAR_IOCSEEKTO, &seekto);
         }
         else
         {
@@ -104,6 +103,8 @@ void* active_connection(void *element)
         if (end==1) {
             pthread_mutex_lock(&file_mutex);
             int rfd = open(file_path, O_RDONLY, 0);
+            if (ret == 2)
+                ioctl(rfd, AESDCHAR_IOCSEEKTO, &seekto);
             while (1) {
                 int read_len = read(rfd, buf, sizeof(buf));
                 if (read_len == 0) {
