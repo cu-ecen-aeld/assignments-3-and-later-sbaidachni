@@ -73,7 +73,7 @@ long aesd_ioctl(struct file *filp, unsigned int kind, unsigned long arg)
 
             while(i<seekto.write_cmd)
             {
-                totalSize += aesd_device.circBuff.entry[i].size;
+                totalSize += dev->circular_buffer->entry[i].size;
                 i++;
             }
 

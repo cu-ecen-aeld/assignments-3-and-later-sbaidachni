@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include "../aesd-char-driver/aesd_ioctl.h"
 
 #define USE_AESD_CHAR_DEVICE 1
 
