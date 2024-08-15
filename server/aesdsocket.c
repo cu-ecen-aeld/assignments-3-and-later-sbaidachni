@@ -14,8 +14,16 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#define USE_AESD_CHAR_DEVICE 1
+
+// Define the data file path
+#if USE_AESD_CHAR_DEVICE
+    #define DATA_FILE "/dev/aesdchar"
+#else
+    #define DATA_FILE "/var/tmp/aesdsocketdata"
+#endif
+
 static char is_exit = 0;
-static const char file_path[] = "/var/tmp/aesdsocketdata";
 static const size_t buf_size = 256;
 static int file_descriptor;
 int s_id;
@@ -112,9 +120,9 @@ static void alarm_handler(union sigval sigval)
 
 int main(int argc, char** argv)
 {
-    timer_t timerid;
+    //timer_t timerid;
     struct sigevent sev;
-    struct itimerspec its;
+    //struct itimerspec its;
 
     struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
@@ -190,7 +198,7 @@ int main(int argc, char** argv)
 
     file_descriptor = open(file_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU  | S_IRGRP | S_IROTH);
 
-    int clock_id = CLOCK_MONOTONIC;
+    /*int clock_id = CLOCK_MONOTONIC;
     memset(&sev, 0, sizeof(struct sigevent));
     
     sev.sigev_notify = SIGEV_THREAD;
@@ -214,7 +222,7 @@ int main(int argc, char** argv)
         printf("set timer failed\n");
         timer_delete(timerid);
         return -1;
-    }
+    }*/
 
     while(is_exit==0) 
     {
@@ -286,7 +294,7 @@ int main(int argc, char** argv)
 
     syslog(LOG_INFO, "Caught signal, exiting");
     closelog();
-    timer_delete(timerid);
+    //timer_delete(timerid);
     close(file_descriptor);
     pthread_mutex_destroy(&file_mutex);
     pthread_mutex_destroy(&queue_mutex);
