@@ -21,7 +21,7 @@
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
-MODULE_AUTHOR("Your Name Here"); /** TODO: fill in your name **/
+MODULE_AUTHOR("sbaidachni"); /** TODO: fill in your name **/
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
@@ -60,7 +60,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     size_t read_count = 0;
 
     struct aesd_dev* dev = (struct aesd_dev* )filp->private_data;
-    mutex_lock_interruptible(&dev->lock)
+    mutex_lock_interruptible(&dev->lock);
 
     struct aesd_buffer_entry* entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->circular_buffer, *fpos, &entry_offset_byte_rtn);
 	
@@ -77,7 +77,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
         }
 	    copy_to_user(buf, (char *)(cur_entry->buffptr + entry_offset_byte_rtn), read_count);
 
-        *f_pos += read_count
+        *f_pos += read_count;
 	    retval = read_count;
     }
 	
@@ -99,7 +99,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     char* aux_buff = NULL;
     size_t buf_size = 0;
 	
-    mutex_lock_interruptible(&dev->lock)
+    mutex_lock_interruptible(&dev->lock);
 
     if(dev->entry == NULL)
     {
@@ -107,7 +107,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 
 	    dev->entry->buffptr = kmalloc(count, GFP_KERNEL);
 
-	    copy_from_user((char *)dev->entry->buffptr, buf, count)
+	    copy_from_user((char *)dev->entry->buffptr, buf, count);
 
 	    dev->entry->size = count;
     }
@@ -117,7 +117,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	    aux_buff = (char *)dev->entry->buffptr;
 	    dev->entry->buffptr = kmalloc(buf_size, GFP_KERNEL);
 
-        copy_from_user((char *)(dev->entry->buffptr + dev->entry->size), buf, count)
+        copy_from_user((char *)(dev->entry->buffptr + dev->entry->size), buf, count);
 	    memcpy((char *)dev->entry->buffptr, aux_buff, dev->entry->size);
 	    dev->entry->size = buf_size;
 	    kfree(aux_buff);

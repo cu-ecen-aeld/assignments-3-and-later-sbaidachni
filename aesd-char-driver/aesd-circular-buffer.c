@@ -39,7 +39,8 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         buffer_size = buffer->in_offs - buffer->out_offs;
     int start_position = buffer->out_offs;
 
-    for (int i=0; i<buffer_size; i++)
+    int i = 0;
+    for (i=0; i<buffer_size; i++)
     {
         if (char_offset >= buffer->entry[start_position].size) 
         {
