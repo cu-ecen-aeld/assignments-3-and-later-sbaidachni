@@ -25,6 +25,7 @@
 
 static char is_exit = 0;
 static const size_t buf_size = 256;
+static const char file_path[] = DATA_FILE;
 static int file_descriptor;
 int s_id;
 
