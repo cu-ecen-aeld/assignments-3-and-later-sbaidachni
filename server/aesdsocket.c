@@ -26,7 +26,7 @@
 static char is_exit = 0;
 static const size_t buf_size = 256;
 static const char file_path[] = DATA_FILE;
-static int file_descriptor;
+//static int file_descriptor;
 int s_id;
 
 static pthread_mutex_t file_mutex;
@@ -50,6 +50,8 @@ void* active_connection(void *element)
 {
     struct connect_item *item = (struct connect_item *)element;
     int data_received = 0;
+
+    int file_descriptor = open(file_path, O_CREAT | O_APPEND | O_WRONLY, 0666);
 
     for(;;) 
     {
@@ -98,6 +100,8 @@ void* active_connection(void *element)
         }
         
     }
+
+    close(file_descriptor);
 
     item->completed = 1;
     return NULL;
@@ -197,7 +201,7 @@ int main(int argc, char** argv)
     pthread_mutex_init(&queue_mutex, NULL);
     pthread_mutex_init(&file_mutex, NULL);
 
-    file_descriptor = open(file_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU  | S_IRGRP | S_IROTH);
+    //file_descriptor = open(file_path, O_WRONLY|O_CREAT|O_TRUNC, S_IRWXU  | S_IRGRP | S_IROTH);
 
     /*int clock_id = CLOCK_MONOTONIC;
     memset(&sev, 0, sizeof(struct sigevent));
@@ -296,11 +300,11 @@ int main(int argc, char** argv)
     syslog(LOG_INFO, "Caught signal, exiting");
     closelog();
     //timer_delete(timerid);
-    close(file_descriptor);
+    //close(file_descriptor);
     pthread_mutex_destroy(&file_mutex);
     pthread_mutex_destroy(&queue_mutex);
     close(s_id);
-    unlink(file_path);
+    //unlink(file_path);
 
     return 0;
 }
